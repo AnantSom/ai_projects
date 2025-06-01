@@ -1,0 +1,12 @@
+# Ignore secrets and virtual envs
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore logs and temp files
+*.log
+
+# Ignore IDE and OS files
+.vscode/
+.DS_Store

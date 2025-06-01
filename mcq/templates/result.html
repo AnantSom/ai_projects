@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generated MCQs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        
+        <div class="mb-6">
+            <iframe class="w-full rounded-lg" height="315" src="{{ video_url }}" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <h2 class="text-2xl font-bold text-indigo-600 mb-4">Answer the MCQs</h2>
+        <form method="POST" action="{{ url_for('mcq.submit_answers') }}">
+            {% for q in questions %}
+                <div class="mb-6">
+                    <p class="font-semibold">{{ loop.index }}. {{ q.question }}</p>
+                    {% set question_id = loop.index0 %}
+                    <div class="ml-4 mt-2 space-y-1">
+                        {% for option in q.options %}
+                            <label class="block">
+                                <input type="radio" name="q{{ question_id }}" value="{{ option }}" required class="mr-2">
+                                {{ option }}
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+            <input type="hidden" name="video_url" value="{{ video_url }}">
+            <input type="hidden" name="answers_json" value="{{ answers_json }}">
+            <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">
+                Submit Answers
+            </button>
+        </form>
+    </div>
+</body>
+</html>
