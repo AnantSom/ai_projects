@@ -16,5 +16,4 @@ ENV FLASK_ENV=production
 # Expose port
 EXPOSE 10000
 
-# Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "2", "app:app"]
+CMD ["python", "app.py"]
