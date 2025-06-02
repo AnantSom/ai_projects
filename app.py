@@ -11,6 +11,7 @@ from urllib.parse import urlparse, parse_qs
 
 # Load environment variables
 load_dotenv()
+print("MY_API_KEY from env:", os.getenv("MY_API_KEY"))
 
 # Configure Gemini AI
 genai.configure(api_key=os.getenv("MY_API_KEY"))
