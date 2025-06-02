@@ -23,6 +23,7 @@ app = Flask(__name__)
 def get_transcript(video_url):
     try:
         video_id = video_url.split("v=")[-1].split("&")[0]
+        print (f'video_id , {video_id}')
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
         print(f'received transcripts: ,{transcript}')
         text = " ".join([entry["text"] for entry in transcript])
