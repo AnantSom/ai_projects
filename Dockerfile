@@ -1,17 +1,20 @@
-# Dockerfile (at project root)
 FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY mcq/requirements.txt ./requirements.txt
+# Copy requirements first for better caching
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY mcq /app/mcq
+# Copy application code
+COPY . /app
 
-WORKDIR /app/mcq
+# Set environment variables
 ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_ENV=production
 
-CMD ["flask", "run"]
+# Expose port
+EXPOSE 10000
 
-
+# Use gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "2", "app:app"]

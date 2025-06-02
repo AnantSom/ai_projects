@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated MCQs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        
+        <!-- Navigation -->
+        <div class="mb-6">
+            <a href="/mcq" class="text-indigo-600 hover:text-indigo-800 font-medium">← Generate New MCQs</a>
+        </div>
+        
+        <!-- Video Embed -->
+        <div class="mb-6">
+            <iframe class="w-full rounded-lg" height="315" src="{{ video_url }}" frameborder="0" allowfullscreen></iframe>
+        </div>
+        
+        <h2 class="text-2xl font-bold text-indigo-600 mb-4">Answer the MCQs</h2>
+        
+        <form method="POST" action="/mcq/submit">
+            {% for q in questions %}
+                <div class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <p class="font-semibold text-lg mb-3">{{ loop.index }}. {{ q.question }}</p>
+                    {% set question_id = loop.index0 %}
+                    <div class="ml-4 space-y-2">
+                        {% for option in q.options %}
+                            <label class="flex items-start cursor-pointer hover:bg-gray-50 p-2 rounded">
+                                <input type="radio" name="q{{ question_id }}" value="{{ option }}" required class="mr-3 mt-1">
+                                <span>{{ option }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <input type="hidden" name="video_url" value="{{ video_url }}">
+            <input type="hidden" name="answers_json" value="{{ answers_json }}">
+            
+            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-semibold">
+                Submit Answers
+            </button>
+        </form>
+    </div>
+</body>
+</html>

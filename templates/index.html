@@ -1,0 +1,173 @@
+
+
+.\ai_projects\Dockerfile --- FROM python:3.10-slim WORKDIR /app COPY requirements.txt ./ RUN pip install --no-cache-dir -r requirements.txt COPY . /app ENV FLASK_APP=app.py ENV FLASK_RUN_HOST=0.0.0.0 ENV FLASK_RUN_PORT=10000 CMD ["flask", "run"] --- .\ai_projects\requirements
+
+pasted
+
+my goal is to run multiple projects from the homepage in render. So at the root there should be an index.html which links to various projects like mcq, summarize etc. Then when I click on say /mcq, it opens that app
+
+this code has many errors fix them
+
+Edit
+Looking at your Flask application, I can see several structural and routing issues that need to be fixed. Let me create a corrected version that properly organizes multiple projects under a single Flask app.
+
+
+Fixed Flask Multi-Project App Structure
+Code 
+Now I'll create the corrected file structure. First, the main homepage template:
+
+
+templates/index.html - Main Homepage
+Interactive artifact 
+Now I'll create the MCQ templates in the correct structure:
+
+
+templates/mcq/mcq_index.html
+Interactive artifact 
+
+templates/mcq/result.html
+Interactive artifact 
+
+templates/mcq/submission_result.html
+Interactive artifact 
+Now let me create the updated requirements.txt and Dockerfile:
+
+
+requirements.txt
+Code 
+
+Dockerfile
+Code 
+Summary of Fixes
+Here are the key issues I fixed in your Flask application:
+
+1. Removed Blueprint Structure
+Simplified the app by removing the unnecessary Blueprint structure
+Moved all routes directly into app.py for better clarity
+2. Fixed Template Structure
+Created proper template hierarchy: templates/index.html for homepage and templates/mcq/ folder for MCQ templates
+Fixed template references in routes to match the new structure
+3. Corrected Routing Issues
+Fixed the duplicate route decorators (you had both GET and POST on the same route incorrectly)
+Separated GET and POST handling properly
+Fixed the form action URLs to point to correct endpoints
+4. Fixed File Structure
+Here's your recommended file structure:
+
+ai_projects/
+├── app.py
+├── requirements.txt
+├── Dockerfile
+├── .env
+└── templates/
+    ├── index.html
+    └── mcq/
+        ├── mcq_index.html
+        ├── result.html
+        └── submission_result.html
+5. Enhanced UI/UX
+Created a beautiful homepage with project cards
+Added proper navigation between pages
+Improved the MCQ interface with better styling
+Added score visualization in results
+6. Production Ready
+Added Gunicorn to requirements for production deployment
+Updated Dockerfile to use Gunicorn instead of Flask development server
+Set proper environment variables
+7. Environment Setup
+Make sure your .env file contains:
+
+MY_API_KEY=your_gemini_api_key_here
+8. Key Route Changes
+/ - Homepage with project links
+/mcq - MCQ generator (GET shows form, POST processes it)
+/mcq/submit - Handles MCQ answer submission
+/summarize - Placeholder for future project
+This structure makes it easy to add more projects by simply adding new routes and templates. Each project can have its own folder under templates/ and corresponding routes in app.py.
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Projects Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .project-card {
+            transition: all 0.3s ease;
+        }
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-6 py-12">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-gray-800 mb-4">AI Projects Hub</h1>
+            <p class="text-xl text-gray-600">Explore our collection of AI-powered tools and applications</p>
+        </div>
+
+        <!-- Projects Grid -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            
+            <!-- MCQ Generator Project -->
+            <div class="project-card bg-white rounded-xl shadow-lg p-8">
+                <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mb-6">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">MCQ Generator</h3>
+                <p class="text-gray-600 mb-6">Generate multiple choice questions from YouTube videos using AI. Perfect for creating quizzes and assessments.</p>
+                <a href="/mcq" class="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-600 hover:to-indigo-700 transition duration-300">
+                    Try MCQ Generator →
+                </a>
+            </div>
+
+            <!-- Summarizer Project (Placeholder) -->
+            <div class="project-card bg-white rounded-xl shadow-lg p-8">
+                <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-teal-600 rounded-full flex items-center justify-center mb-6">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">Content Summarizer</h3>
+                <p class="text-gray-600 mb-6">Automatically summarize long articles, documents, and videos into concise, digestible content.</p>
+                <a href="/summarize" class="inline-block w-full text-center bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-green-600 hover:to-teal-700 transition duration-300">
+                    Try Summarizer →
+                </a>
+            </div>
+
+            <!-- Future Project Placeholder -->
+            <div class="project-card bg-white rounded-xl shadow-lg p-8 opacity-75">
+                <div class="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-full flex items-center justify-center mb-6">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-4">More Projects</h3>
+                <p class="text-gray-600 mb-6">More exciting AI-powered tools are coming soon. Stay tuned for updates!</p>
+                <div class="inline-block w-full text-center bg-gray-300 text-gray-500 font-semibold py-3 px-6 rounded-lg cursor-not-allowed">
+                    Coming Soon
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-16">
+            <p class="text-gray-500">Built with Flask and powered by AI</p>
+        </div>
+    </div>
+</body>
+</html>

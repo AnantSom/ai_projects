@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Feedback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        
+        <!-- Navigation -->
+        <div class="mb-6 flex justify-between">
+            <a href="/mcq" class="text-indigo-600 hover:text-indigo-800 font-medium">← Try Another Video</a>
+            <a href="/" class="text-gray-600 hover:text-gray-800 font-medium">Home</a>
+        </div>
+        
+        <h2 class="text-2xl font-bold text-indigo-600 mb-6">MCQ Results</h2>
+        
+        <!-- Score Display -->
+        <div class="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-indigo-200">
+            <h3 class="text-2xl font-bold text-center mb-2">
+                Your Score: 
+                <span class="text-indigo-600">{{ score }}</span> 
+                out of 
+                <span class="text-indigo-600">{{ total }}</span>
+            </h3>
+            <div class="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+                <div class="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                     id="progress-bar"></div>
+            </div>
+            <p class="text-center text-gray-600">{{ percentage }}% Correct</p>
+            
+            <script>
+                document.getElementById('progress-bar').style.width = '{{ percentage }}%';
+            </script>
+        </div>
+        
+        <!-- Detailed Results -->
+        <div class="space-y-6">
+            {% for q, user_ans, is_correct in zip(questions, user_answers, correctness) %}
+                <div class="p-4 border rounded-lg {{ 'border-green-200 bg-green-50' if is_correct else 'border-red-200 bg-red-50' }}">
+                    <p class="font-semibold text-lg mb-3">{{ loop.index }}. {{ q.question }}</p>
+                    
+                    <div class="mb-2">
+                        <span class="font-medium">Your answer: </span>
+                        <span class="{{ 'text-green-700 font-bold' if is_correct else 'text-red-700 font-bold' }}">
+                            {{ user_ans if user_ans else "No answer selected" }}
+                        </span>
+                        {% if is_correct %}
+                            <span class="ml-2 text-green-600">✓ Correct!</span>
+                        {% else %}
+                            <span class="ml-2 text-red-600">✗ Incorrect</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if not is_correct %}
+                        <div>
+                            <span class="font-medium">Correct answer: </span>
+                            <span class="text-green-700 font-bold">{{ q.answer }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="mt-8 flex gap-4 justify-center">
+            <a href="/mcq" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition duration-200 font-semibold">
+                Try Another Video
+            </a>
+            <a href="/" class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-200 font-semibold">
+                Back to Home
+            </a>
+        </div>
+    </div>
+</body>
+</html>
