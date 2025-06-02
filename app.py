@@ -24,9 +24,11 @@ def get_transcript(video_url):
     try:
         video_id = video_url.split("v=")[-1].split("&")[0]
         transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        print(f'received transcripts: ,{transcript}')
         text = " ".join([entry["text"] for entry in transcript])
         return text
-    except Exception:
+    except Exception as e:
+        print (e)
         return None
 
 def generate_mcqs_from_video(youtube_url, mcq_count):
