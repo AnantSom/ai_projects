@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-3xl mx-auto bg-white p-6 rounded shadow">
+        <h2 class="text-2xl font-bold mb-4">Welcome, {{ username }}</h2>
+
+        <!-- Add website form -->
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <input name="name" placeholder="Website Name" required class="border rounded px-3 py-2 col-span-1" />
+            <input name="website" placeholder="Website URL" required class="border rounded px-3 py-2 col-span-1" />
+            <button type="submit" class="bg-blue-500 text-white rounded px-4 py-2 hover:bg-blue-600 col-span-1">Add Website</button>
+        </form>
+
+        {% if message %}
+            <p class="text-sm text-green-600 mb-4">{{ message }}</p>
+        {% endif %}
+
+        <h3 class="text-lg font-semibold mb-2">Your Websites</h3>
+        <ul class="space-y-2">
+            {% for site in websites %}
+                <li class="flex items-center justify-between bg-gray-50 p-3 rounded shadow-sm">
+                    <span class="font-medium">{{ site[1] }}</span>
+                    <div class="flex gap-2">
+                        <form method="POST">
+                            <input type="hidden" name="delete_id" value="{{ site[0] }}">
+                            <button type="submit" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600">Delete</button>
+                        </form>
+                        <a href="{{ site[2] }}" target="_blank">
+                            <button class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">Visit</button>
+                        </a>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <div class="text-right mt-6">
+            <a href="/logout" class="text-blue-500 hover:underline">Logout</a>
+        </div>
+    </div>
+</body>
+</html>
