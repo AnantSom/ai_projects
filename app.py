@@ -1,4 +1,4 @@
-# app.py - Unified Flask app for MCQ Generator + Website Manager
+# app.py - Unified Flask app for all AI projects
 
 from flask import Flask, render_template, request, redirect, session
 import os
@@ -15,19 +15,18 @@ import time
 app = Flask(__name__)
 app.secret_key = 'super_secret_key'
 
-# Load environment variables
+# --- App Setup ---
 load_dotenv()
 api_key = os.getenv("MY_API_KEY")
 genai.configure(api_key=api_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
-print("Connecting to host:", os.getenv("DB_HOST"))
 
 # Reliable DB connection with retry for Docker support
 max_retries = 10
+conn, cur = None, None
 while max_retries > 0:
     try:
-
-        db_host = os.getenv("DB_HOST", "localhost") 
+        db_host = os.getenv("DB_HOST", "localhost")
         conn = psycopg2.connect(
             host=db_host,
             database=os.getenv("DB_NAME"),
@@ -38,115 +37,142 @@ while max_retries > 0:
         print("✅ Connected to PostgreSQL")
         break
     except Exception as e:
-        print(f"⏳ Waiting for DB... ({10 - max_retries + 1}/10)")
-        print(e)
+        print(f"⏳ Waiting for DB... ({11 - max_retries}/10) - {e}")
         max_retries -= 1
         time.sleep(2)
-
-if max_retries == 0:
+if not conn:
     raise Exception("❌ Could not connect to database after 10 attempts")
 
 
-# -------------------- Homepage --------------------
+# --- Helper Functions ---
+def clean_json_response(text):
+    """
+    Robustly finds and extracts a JSON array from the AI's response text.
+    """
+    start_index = text.find('[')
+    end_index = text.rfind(']')
+    if start_index != -1 and end_index != -1 and end_index > start_index:
+        return text[start_index:end_index + 1]
+    # Fallback for simple markdown cleaning
+    if text.startswith("```"):
+        return re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+    return text
+
+def convert_to_embed_url(youtube_url):
+    parsed_url = urlparse(youtube_url)
+    video_id = None
+    if "youtube.com" in parsed_url.netloc:
+        video_id = parse_qs(parsed_url.query).get("v", [None])[0]
+    elif "youtu.be" in parsed_url.netloc:
+        video_id = parsed_url.path.lstrip("/")
+    return f"https://www.youtube.com/embed/{video_id}" if video_id else None
+
+
+# --- Homepage ---
 @app.route("/")
 def homepage():
     return render_template('index.html')
 
 
-# -------------------- MCQ Generator --------------------
+# --- MCQ Generator (from YouTube URL) ---
+def get_transcript(video_url):
+    try:
+        video_id = video_url.split("v=")[-1].split("&")[0]
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+        return " ".join([entry["text"] for entry in transcript_list])
+    except Exception:
+        return None
+
 @app.route("/mcq")
-def mcq_home():
-    return render_template('mcq/mcq_index.html')
+def mcq_video_home():
+    return render_template('mcq_video_index.html')
 
 @app.route("/mcq", methods=["POST"])
-def mcq_generate():
+def mcq_video_generate():
     video_url = request.form.get("video_url")
     mcq_count = request.form.get("mcq_count", "5")
     embed_url = convert_to_embed_url(video_url)
-
+    if not embed_url:
+        return render_template("mcq_video_index.html", error="Invalid YouTube URL provided.")
     try:
-        mcq_count = int(mcq_count)
-        mcqs, error = generate_mcqs_from_video(video_url, mcq_count)
-        if error:
-            return render_template("mcq/mcq_index.html", error=error)
-
+        transcript = get_transcript(video_url)
+        if not transcript:
+            return render_template("mcq_video_index.html", error="Could not retrieve transcript. Video may have captions disabled.")
+        prompt = (f"Generate exactly {mcq_count} multiple choice questions from transcript as a valid JSON array. Do not include markdown or any other text.\n\n{transcript}")
+        response = model.generate_content(prompt)
+        cleaned_text = clean_json_response(response.text)
+        mcqs = json.loads(cleaned_text)
         encoded_json = base64.b64encode(json.dumps(mcqs).encode()).decode()
-        return render_template("mcq/result.html", questions=mcqs, video_url=embed_url, answers_json=encoded_json)
-
+        return render_template("mcq_video_result.html", questions=mcqs, video_url=embed_url, answers_json=encoded_json)
     except Exception as e:
-        return render_template("mcq/mcq_index.html", error=str(e))
+        raw_response_text = response.text if 'response' in locals() else "Response not available."
+        print(f"--- ERROR: Video MCQ ---\n{e}\nRaw Response:\n{raw_response_text}\n--------------------")
+        return render_template("mcq_video_index.html", error=f"An error occurred parsing the AI response: {e}")
 
 @app.route("/mcq/submit", methods=["POST"])
-def submit_answers():
+def mcq_video_submit():
     try:
         encoded_json = request.form["answers_json"]
         questions = json.loads(base64.b64decode(encoded_json).decode())
-        user_answers = []
-        correctness = []
-
+        user_answers, correctness = [], []
         for i, q in enumerate(questions):
             selected = request.form.get(f"q{i}", "")
             user_answers.append(selected)
             correctness.append(selected == q["answer"])
-
-        total = len(questions)
-        correct = sum(correctness)
-        percentage = round((correct / total) * 100, 2)
-
-        return render_template("mcq/submission_result.html",
-                               video_url=request.form.get("video_url"),
-                               questions=questions,
-                               user_answers=user_answers,
-                               correctness=correctness,
-                               score=correct,
-                               total=total,
-                               percentage=percentage,
-                               zip=zip)
-
-    except Exception:
-        return render_template("mcq/mcq_index.html", error="Error processing answers")
-
-def get_transcript(video_url):
-    try:
-        video_id = video_url.split("v=")[-1].split("&")[0]
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        return " ".join([entry["text"] for entry in transcript])
-    except:
-        return None
-
-def generate_mcqs_from_video(youtube_url, mcq_count):
-    transcript = get_transcript(youtube_url)
-    if not transcript:
-        return [], "Transcript unavailable or captions missing."
-
-    prompt = (
-        f"Generate exactly {mcq_count} multiple choice questions as JSON array. "
-        "Each with: 'question', 'options' (4), 'answer'. No explanation or markdown.\n\n"
-        "[{\"question\": \"...\", \"options\": [...], \"answer\": \"...\"}]\n\n"
-        f"Transcript:\n{transcript}"
-    )
-
-    try:
-        response = model.generate_content(prompt)
-        mcqs_json = response.text.strip()
-        if mcqs_json.startswith("```"):
-            mcqs_json = re.sub(r"^```(?:json)?|```$", "", mcqs_json.strip(), flags=re.MULTILINE).strip()
-        return json.loads(mcqs_json), None
+        total, score = len(questions), sum(correctness)
+        percentage = round((score / total) * 100, 2) if total > 0 else 0
+        return render_template("mcq_video_submission_result.html",
+                               video_url=request.form.get("video_url"), questions=questions,
+                               user_answers=user_answers, correctness=correctness,
+                               score=score, total=total, percentage=percentage, zip=zip)
     except Exception as e:
-        return [], f"Error generating MCQs: {str(e)}"
-
-def convert_to_embed_url(youtube_url):
-    parsed_url = urlparse(youtube_url)
-    if "youtube.com" in parsed_url.netloc:
-        video_id = parse_qs(parsed_url.query).get("v", [None])[0]
-    elif "youtu.be" in parsed_url.netloc:
-        video_id = parsed_url.path.lstrip("/")
-    else:
-        return youtube_url
-    return f"https://www.youtube.com/embed/{video_id}"
+        return render_template("mcq_video_index.html", error=f"Error processing answers: {e}")
 
 
-# -------------------- User Auth + Website Manager --------------------
+# --- MCQ Generator (from Topic) ---
+@app.route("/mcq-topic")
+def mcq_topic_home():
+    return render_template('mcq_topic_index.html')
+
+@app.route("/mcq-topic", methods=["POST"])
+def mcq_topic_generate():
+    topic = request.form.get("topic")
+    mcq_count = request.form.get("mcq_count", "5")
+    try:
+        prompt = (f"Generate exactly {mcq_count} multiple-choice questions about '{topic}' as a valid JSON array. Do not include markdown or any other text.")
+        response = model.generate_content(prompt)
+        cleaned_text = clean_json_response(response.text) # Apply the robust cleaning
+        mcqs = json.loads(cleaned_text) # Parse the cleaned text
+        encoded_json = base64.b64encode(json.dumps(mcqs).encode()).decode()
+        return render_template("mcq_topic_result.html", questions=mcqs, topic=topic, answers_json=encoded_json)
+    except Exception as e:
+        # Add the same robust error logging
+        raw_response_text = response.text if 'response' in locals() else "Response not available."
+        print(f"--- ERROR: Topic MCQ ---\n{e}\nRaw Response:\n{raw_response_text}\n--------------------")
+        return render_template("mcq_topic_index.html", error=f"An error occurred parsing the AI response: {e}")
+
+
+@app.route("/mcq-topic/submit", methods=["POST"])
+def mcq_topic_submit():
+    try:
+        encoded_json = request.form["answers_json"]
+        questions = json.loads(base64.b64decode(encoded_json).decode())
+        user_answers, correctness = [], []
+        for i, q in enumerate(questions):
+            selected = request.form.get(f"q{i}", "")
+            user_answers.append(selected)
+            correctness.append(selected == q["answer"])
+        total, score = len(questions), sum(correctness)
+        percentage = round((score / total) * 100, 2) if total > 0 else 0
+        return render_template("mcq_topic_submission_result.html",
+                               topic=request.form.get("topic"), questions=questions,
+                               user_answers=user_answers, correctness=correctness,
+                               score=score, total=total, percentage=percentage, zip=zip)
+    except Exception as e:
+        return render_template("mcq_topic_index.html", error=f"Error processing answers: {e}")
+
+
+# --- User Auth + Website Manager ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -156,69 +182,58 @@ def signup():
             cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
             conn.commit()
             return redirect('/login')
-        except Exception as e:
+        except Exception:
             conn.rollback()
-            return f"Signup failed: {e}"
+            return render_template('signup.html', error=f"Signup failed. Username might already exist.")
     return render_template('signup.html')
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        try:
-            cur.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
-            user = cur.fetchone()
-            if user:
-                session['username'] = username
-                session['user_id'] = user[0]
-                return redirect('/dashboard')
-            else:
-                return "Invalid credentials. <a href='/login'>Try again</a>"
-        except Exception as e:
-            conn.rollback()
-            return f"Login error: {e}"
+        cur.execute("SELECT id, username FROM users WHERE username=%s AND password=%s", (username, password))
+        user = cur.fetchone()
+        if user:
+            session['user_id'], session['username'] = user[0], user[1]
+            return redirect('/dashboard')
+        else:
+            return render_template('login.html', error="Invalid username or password.")
     return render_template('login.html')
-
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    if 'username' not in session:
-        return redirect('/login')
-
-    message = ""
-
+    if 'user_id' not in session: return redirect('/login')
+    message, websites = "", []
     try:
         if request.method == 'POST':
+            user_id = session['user_id']
             if 'website' in request.form and 'name' in request.form:
                 cur.execute("INSERT INTO websites (user_id, url, name) VALUES (%s, %s, %s)",
-                            (session['user_id'], request.form['website'], request.form['name']))
-                conn.commit()
+                            (user_id, request.form['website'], request.form['name']))
                 message = "Website added!"
             elif 'delete_id' in request.form:
                 cur.execute("DELETE FROM websites WHERE id = %s AND user_id = %s",
-                            (request.form['delete_id'], session['user_id']))
-                conn.commit()
+                            (request.form['delete_id'], user_id))
                 message = "Website deleted."
-
-        cur.execute("SELECT id, name, url FROM websites WHERE user_id = %s", (session['user_id'],))
+            conn.commit()
+        cur.execute("SELECT id, name, url FROM websites WHERE user_id = %s ORDER BY id", (session['user_id'],))
         websites = cur.fetchall()
-
     except Exception as e:
         conn.rollback()
-        message = f"Error: {e}"
-        websites = []
-
+        message = f"Database Error: {e}"
     return render_template('dashboard.html', username=session['username'], websites=websites, message=message)
-
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect('/')
 
 
-# -------------------- Start Flask Server --------------------
+# --- Main Execution ---
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=10000)
+    app.run(
+        debug=True,
+        host=os.getenv("FLASK_RUN_HOST", "127.0.0.1"),
+        port=int(os.getenv("FLASK_RUN_PORT", 5000))
+    )
